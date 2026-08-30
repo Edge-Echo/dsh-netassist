@@ -48,24 +48,57 @@ export default Object.assign(
   function netassist(ctx: Context, config: NetassistConfig = {}) {
     const timeoutMs = config.psTimeoutMs ?? 25000
 
-    // ── 1. net_github_status ──────────────────────────────────────────────
+    // ── 1. net_github_status（结构化输出 + UI 卡片示范）──────────────────
     ctx.tools.register(defineTool({
       name: 'net_github_status',
       description: 'One-shot GitHub connectivity check: DNS resolution and TCP 443 reachability for github.com. Direct answer to "is GitHub reachable right now?".',
       parameters: {},
       output: {
-        schema: { type: 'string' },
-        render: (_a, value) => [{ type: 'text', text: value }],
+        // 结构化 schema：UI 和回放都能拿到字段级数据，而非一段文本
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            dns: { type: 'array', items: { type: 'string' }, required: true },
+            tcp443: { type: 'string', required: true },
+            reachable: { type: 'boolean', required: true },
+          },
+        },
+        // 模型可见文本：从结构化值渲染
+        render: (_a, value) => [{
+          type: 'text',
+          text: `GitHub reachable: ${value.reachable} | DNS: ${value.dns.join(', ')} | TCP 443: ${value.tcp443}`,
+        }],
+        // 纯可重放投影：字段数据随会话日志持久化，UI 回放也能还原卡片
+        presentationMeta: (_a, value) => value,
+      },
+      // 进行中卡片：UI 显示「Checking GitHub connectivity」+ fetch 图标
+      presentCall: () => ({
+        card: 'generic',
+        title: 'Checking GitHub connectivity',
+        kind: 'fetch',
+        rawInput: 'github.com:443',
+      }),
+      // 完成态卡片：标题随结果变化，内容字段化展示
+      presentResult: (_a, result) => {
+        const m = result.meta as { dns?: string[]; tcp443?: string; reachable?: boolean } | undefined
+        return {
+          card: 'generic',
+          title: m?.reachable ? 'GitHub: reachable' : 'GitHub: unreachable',
+          content: [{ type: 'text', text: `TCP 443: ${m?.tcp443 ?? '?'} | DNS: ${m?.dns?.join(', ') ?? '?'}` }],
+        }
       },
       async execute() {
         const script = [
           '$ErrorActionPreference = "Continue"',
           'try { $dns = [System.Net.Dns]::GetHostAddresses("github.com") | ForEach-Object { $_.IPAddressToString } } catch { $dns = @("DNS_FAILED") }',
           `$tcp = $(${tcpTestExpr('"github.com"', 443)})`,
-          `"DNS: $($dns -join ', ')"`,
-          '"TCP 443: " + $tcp',
+          '$out = [ordered]@{ dns = @($dns); tcp443 = $tcp; reachable = ($tcp -eq "OPEN") }',
+          '$out | ConvertTo-Json -Compress',
         ].join('; ')
-        return ps(script, timeoutMs)
+        const json = await ps(script, timeoutMs)
+        const parsed = JSON.parse(json) as { dns: string[]; tcp443: string; reachable: boolean }
+        return parsed
       },
     }))
 
