@@ -1,0 +1,9 @@
+# dsh-netassist — 网络与代理助手
+# 给 dsh agent 一组网络诊断工具（GitHub 连通性/系统代理/端口探测/诊断链/hosts 检查）。
+# 工具实现见 src/index.ts。
+
+- insert:
+    - id: netassist
+      name: 'dsh-netassist'
+      config:
+        psTimeoutMs: 25000
