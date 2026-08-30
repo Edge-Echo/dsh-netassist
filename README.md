@@ -1,5 +1,12 @@
 # dsh-netassist
 
+![dsh-netassist](https://raw.githubusercontent.com/Edge-Echo/dsh-netassist/main/banner.svg)
+
+[![npm version](https://img.shields.io/npm/v/dsh-netassist?color=14b8a6&logo=npm)](https://www.npmjs.com/package/dsh-netassist)
+[![npm downloads](https://img.shields.io/npm/dm/dsh-netassist?color=22d3ee)](https://www.npmjs.com/package/dsh-netassist)
+[![license](https://img.shields.io/npm/l/dsh-netassist?color=14b8a6)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/Edge-Echo/dsh-netassist?color=22d3ee)](https://github.com/Edge-Echo/dsh-netassist)
+
 **Network & proxy assistant for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh).**
 
 Born from real-world China-network pain: GitHub flaky, proxies everywhere, hosts conflicts, TUN vs system proxy confusion. This plugin gives your agent one-shot answers to "is GitHub reachable?", "what proxy is my system using?", "is my proxy port alive?", plus a full diagnosis chain — all read-only, all injection-safe.

@@ -1,5 +1,12 @@
 # dsh-netassist
 
+![dsh-netassist](https://raw.githubusercontent.com/Edge-Echo/dsh-netassist/main/banner.svg)
+
+[![npm version](https://img.shields.io/npm/v/dsh-netassist?color=14b8a6&logo=npm)](https://www.npmjs.com/package/dsh-netassist)
+[![npm downloads](https://img.shields.io/npm/dm/dsh-netassist?color=22d3ee)](https://www.npmjs.com/package/dsh-netassist)
+[![license](https://img.shields.io/npm/l/dsh-netassist?color=14b8a6)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/Edge-Echo/dsh-netassist?color=22d3ee)](https://github.com/Edge-Echo/dsh-netassist)
+
 **面向 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh) 的网络与代理助手。**
 
 源自真实的大陆网络痛点：GitHub 时通时断、到处是代理、hosts 冲突、TUN 模式和系统代理分不清。这个插件让 agent 一键回答「GitHub 通不通？」「系统代理是什么？」「代理端口活着吗？」，外加完整诊断链——全部只读、全部防注入。
