@@ -1,6 +1,6 @@
 {
   "name": "dsh-netassist",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Network & proxy assistant for DeepSeek Harness (dsh): one-shot GitHub connectivity check, system proxy status, proxy port probing, full diag chain (DNS/TCP/HTTP) and hosts-file conflict scan — built from real-world China-network experience.",
   "type": "module",
   "license": "MIT",
