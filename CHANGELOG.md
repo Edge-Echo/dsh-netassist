@@ -1,4 +1,14 @@
-﻿# Changelog
+## [0.2.0] - 2026-09-22
+
+### Added
+
+- `doctor` command: full network preflight (system proxy, proxy port reachability, TUN-adapter detection, GitHub reachability, hosts conflicts) with concrete suggestions about what to change.
+- Full CLI: `doctor`, `github`, `proxy`, `hosts`, `diag` — every command supports `--json`.
+- `net_doctor` agent tool, so the model can run the preflight itself.
+- Shared `checks.ts` module: one implementation behind both the CLI and the plugin tools.
+- Screenshots and `screenshots.json` for storefronts.
+
+# Changelog
 
 ## [0.1.0] - 2026-08-30
 
