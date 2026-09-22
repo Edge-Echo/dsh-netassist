@@ -1,0 +1,24 @@
+# Generated from a real run: `node lib/cli.js doctor --json`
+# Useful as a CI artifact or when filing an issue.
+{
+  "ok": false,
+  "findings": [
+    {
+      "level": "warn",
+      "title": "System proxy is OFF, but the registry still holds 127.0.0.1:10808",
+      "detail": "The Windows proxy switch is off, so traffic goes direct (or via TUN mode). The leftover value is harmless but misleading."
+    },
+    {
+      "level": "error",
+      "title": "GitHub unreachable (TCP 443: TIMEOUT)",
+      "detail": "DNS: 20.205.243.166"
+    },
+    {
+      "level": "ok",
+      "title": "hosts file clean (no GitHub entries)"
+    }
+  ],
+  "suggestions": [
+    "No proxy and no TUN adapter is active while GitHub is unreachable - configure a proxy or check your network."
+  ]
+}
