@@ -1,3 +1,9 @@
+## [0.2.1] - 2026-09-22
+
+### Fixed
+
+- Re-release of 0.2.0, which npm left in a staged state (E409 on any re-publish of the same version). No code changes.
+
 ## [0.2.0] - 2026-09-22
 
 ### Added
