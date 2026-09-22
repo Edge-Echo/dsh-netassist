@@ -25,6 +25,8 @@ Born from real-world China-network pain: GitHub flaky, proxies everywhere, hosts
 | `net_diag` | Full chain for any host: DNS → TCP → HTTPS status code |
 | `net_hosts_check` | GitHub entries pinned in the hosts file (proxy conflict scan) |
 
+![dsh-netassist proxy status](assets/screenshot-proxy.png)
+
 ## Install
 
 ```sh
@@ -54,6 +56,8 @@ net_proxy_status  → ProxyEnable: 1, ProxyServer: 127.0.0.1:10808
 net_proxy_probe   → 10808 OPEN, 10809/7890/7897/8888/1080 CLOSED
 net_hosts_check   → no github entries in hosts (clean)
 ```
+
+![dsh-netassist doctor](assets/screenshot-doctor.png)
 
 ## Troubleshooting
 
