@@ -1,60 +1,25 @@
 // dsh-netassist — network & proxy assistant for DeepSeek Harness.
-// All tools run short PowerShell snippets through powershell.exe; every user
-// input crosses the script boundary as Base64 (injection-proof by design).
-// Every tool returns STRUCTURED output (object schema) with presentationMeta
-// projection and presentCall/presentResult UI cards.
+//
+// Tools delegate to the shared checks module (also used by the CLI); every
+// tool returns STRUCTURED output with presentationMeta projection and
+// presentCall/presentResult UI cards. All user input crosses the PowerShell
+// boundary as Base64 (injection-proof by construction).
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { ToolCallView, ToolResultView } from '@deepseek-ai/dsh-tools'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
-
-const execFileAsync = promisify(execFile)
+import {
+  checkDiag, checkGithub, checkHosts, checkProxyPorts, checkProxyStatus,
+} from './checks.js'
+import { runDoctor, type DoctorReport } from './doctor.js'
 
 /** Plugin config: per-call PowerShell timeout. */
 export interface NetassistConfig {
   psTimeoutMs?: number
 }
 
-async function ps(script: string, timeoutMs: number): Promise<string> {
-  try {
-    const { stdout } = await execFileAsync(
-      'powershell.exe',
-      ['-NoProfile', '-NonInteractive', '-Command', script],
-      { timeout: timeoutMs, windowsHide: true, maxBuffer: 4 * 1024 * 1024 },
-    )
-    return stdout.trim()
-  } catch (err) {
-    const e = err as { message?: string }
-    throw new Error(`PowerShell failed: ${e?.message ?? String(err)}`)
-  }
-}
-
-/** Parse PS JSON output into a typed value. */
-function psJson<T>(script: string, timeoutMs: number): Promise<T> {
-  return ps(script, timeoutMs).then((s) => JSON.parse(s) as T)
-}
-
-function b64(s: string): string {
-  return Buffer.from(s, 'utf8').toString('base64')
-}
-
-function psStr(base64: string): string {
-  return `[System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${base64}'))`
-}
-
-/** PowerShell expression: TCP connect test; evaluates to OPEN/TIMEOUT/CLOSED inside `$()`. */
-function tcpTestExpr(hostExpr: string, port: number, timeoutMs = 5000): string {
-  return `$c = New-Object System.Net.Sockets.TcpClient; try { $t = $c.ConnectAsync(${hostExpr}, ${port}); if ($t.Wait(${timeoutMs})) { "OPEN" } else { "TIMEOUT" } } catch { "CLOSED" } finally { $c.Dispose() }`
-}
-
-/** Read presentation meta from a result, typed. */
 function meta<T>(result: { meta?: unknown }): T | undefined {
   return result.meta as T | undefined
 }
-
-const HOSTS_PATH = "$env:WINDIR + '\\System32\\drivers\\etc\\hosts'"
-const PROXY_REG = 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings'
 
 export default Object.assign(
   function netassist(ctx: Context, config: NetassistConfig = {}) {
@@ -63,7 +28,7 @@ export default Object.assign(
     // ── 1. net_github_status ──────────────────────────────────────────────
     ctx.tools.register(defineTool({
       name: 'net_github_status',
-      description: 'One-shot GitHub connectivity check: DNS resolution and TCP 443 reachability for github.com. Direct answer to "is GitHub reachable right now?".',
+      description: 'One-shot GitHub connectivity check: DNS resolution, TCP 443 reachability and the HTTPS status code for github.com. Direct answer to "is GitHub reachable right now?".',
       parameters: {},
       output: {
         schema: {
@@ -73,11 +38,13 @@ export default Object.assign(
             dns: { type: 'array', items: { type: 'string' }, required: true },
             tcp443: { type: 'string', required: true },
             reachable: { type: 'boolean', required: true },
+            httpStatus: { type: 'integer', required: true },
+            tcpMs: { type: 'integer', required: true },
           },
         },
         render: (_a, value) => [{
           type: 'text',
-          text: `GitHub reachable: ${value.reachable} | DNS: ${value.dns.join(', ')} | TCP 443: ${value.tcp443}`,
+          text: `GitHub reachable: ${value.reachable} | DNS: ${value.dns.join(', ')} | TCP 443: ${value.tcp443} (${value.tcpMs} ms) | HTTPS: ${value.httpStatus > 0 ? `HTTP ${value.httpStatus}` : 'failed'}`,
         }],
         presentationMeta: (_a, value) => value,
       },
@@ -88,22 +55,16 @@ export default Object.assign(
         rawInput: 'github.com:443',
       }),
       presentResult: (_a, result): ToolResultView => {
-        const m = meta<{ dns?: string[]; tcp443?: string; reachable?: boolean }>(result)
+        const m = meta<{ dns?: string[]; tcp443?: string; reachable?: boolean; httpStatus?: number; tcpMs?: number }>(result)
         return {
           card: 'generic',
-          title: m?.reachable ? 'GitHub: reachable' : 'GitHub: unreachable',
+          title: m?.reachable ? `GitHub: reachable (HTTP ${m.httpStatus ?? '?'}, ${m.tcpMs ?? '?'} ms)` : 'GitHub: unreachable',
           content: [{ type: 'text', text: `TCP 443: ${m?.tcp443 ?? '?'} | DNS: ${m?.dns?.join(', ') ?? '?'}` }],
         }
       },
       async execute() {
-        const script = [
-          '$ErrorActionPreference = "Continue"',
-          'try { $dns = [System.Net.Dns]::GetHostAddresses("github.com") | ForEach-Object { $_.IPAddressToString } } catch { $dns = @("DNS_FAILED") }',
-          `$tcp = $(${tcpTestExpr('"github.com"', 443)})`,
-          '$out = [ordered]@{ dns = @($dns); tcp443 = $tcp; reachable = ($tcp -eq "OPEN") }',
-          '$out | ConvertTo-Json -Compress',
-        ].join('; ')
-        return psJson(script, timeoutMs)
+        const s = await checkGithub(timeoutMs)
+        return { dns: s.dns, tcp443: s.tcp443, reachable: s.reachable, httpStatus: s.httpStatus ?? 0, tcpMs: s.tcpMs ?? 0 }
       },
     }))
 
@@ -130,29 +91,18 @@ export default Object.assign(
         }],
         presentationMeta: (_a, value) => value,
       },
-      presentCall: (): ToolCallView => ({
-        card: 'generic',
-        title: 'Reading system proxy settings',
-        kind: 'read',
-      }),
+      presentCall: (): ToolCallView => ({ card: 'generic', title: 'Reading system proxy settings', kind: 'read' }),
       presentResult: (_a, result): ToolResultView => {
         const m = meta<{ enabled?: boolean; server?: string; override?: string; envHttp?: string; envHttps?: string }>(result)
         return {
           card: 'generic',
           title: m?.enabled ? `Proxy: ${m.server ?? '?'}` : 'Proxy: disabled',
-          content: [{
-            type: 'text',
-            text: `Override: ${m?.override || '(none)'} | env HTTP: ${m?.envHttp || '(none)'} | env HTTPS: ${m?.envHttps || '(none)'}`,
-          }],
+          content: [{ type: 'text', text: `Override: ${m?.override || '(none)'} | env HTTP: ${m?.envHttp || '(none)'} | env HTTPS: ${m?.envHttps || '(none)'}` }],
         }
       },
       async execute() {
-        const script = [
-          `$k = Get-ItemProperty '${PROXY_REG}' -ErrorAction SilentlyContinue`,
-          '$out = [ordered]@{ enabled = ([bool]$k.ProxyEnable); server = "$($k.ProxyServer)"; override = "$($k.ProxyOverride)"; envHttp = "$env:HTTP_PROXY"; envHttps = "$env:HTTPS_PROXY" }',
-          '$out | ConvertTo-Json -Compress',
-        ].join('; ')
-        return psJson(script, timeoutMs)
+        const p = await checkProxyStatus(timeoutMs)
+        return { enabled: p.enabled, server: p.server, override: p.override, envHttp: p.envHttp, envHttps: p.envHttps }
       },
     }))
 
@@ -186,46 +136,23 @@ export default Object.assign(
             },
           },
         },
-        render: (_a, value) => [{
-          type: 'text',
-          text: value.ports.map((p) => `${p.port}:${p.status}`).join(' '),
-        }],
+        render: (_a, value) => [{ type: 'text', text: value.ports.map((p) => `${p.port}:${p.status}`).join(' ') }],
         presentationMeta: (_a, value) => value,
       },
-      presentCall: (_a): ToolCallView => ({
-        card: 'generic',
-        title: 'Probing local proxy ports',
-        kind: 'search',
-      }),
+      presentCall: (): ToolCallView => ({ card: 'generic', title: 'Probing local proxy ports', kind: 'search' }),
       presentResult: (_a, result): ToolResultView => {
         const m = meta<{ ports?: { port: number; status: string }[] }>(result)
         const open = m?.ports?.filter((p) => p.status === 'OPEN') ?? []
         return {
           card: 'generic',
           title: `Proxy ports: ${open.length} open`,
-          content: [{
-            type: 'text',
-            text: open.length
-              ? `Open: ${open.map((p) => p.port).join(', ')}`
-              : 'No common proxy port is open',
-          }],
+          content: [{ type: 'text', text: open.length ? `Open: ${open.map((p) => p.port).join(', ')}` : 'No common proxy port is open' }],
         }
       },
       async execute(args) {
-        const ports = ((args.ports as number[] | undefined) ?? [10808, 10809, 7890, 7897, 8888, 1080])
-        const portsLit = ports.join(',')
-        const probeExpr = tcpTestExpr('"127.0.0.1"', 0).replace(', 0)', ', $p)')
-        const script = [
-          '$ErrorActionPreference = "Continue"',
-          '$results = @()',
-          `foreach ($p in @(${portsLit})) {`,
-          `  $st = $(${probeExpr})`,
-          '  $results += [ordered]@{ port = [int]$p; status = $st }',
-          '}',
-          '$out = [ordered]@{ ports = @($results) }',
-          '$out | ConvertTo-Json -Compress',
-        ].join('; ')
-        return psJson<{ ports: { port: number; status: string }[] }>(script, timeoutMs)
+        const ports = (args.ports as number[] | undefined) ?? [10808, 10809, 7890, 7897, 8888, 1080]
+        const probes = await checkProxyPorts(ports, timeoutMs)
+        return { ports: probes.map((p) => ({ port: p.port, status: p.status })) }
       },
     }))
 
@@ -249,10 +176,7 @@ export default Object.assign(
             http: { type: 'string', required: true },
           },
         },
-        render: (_a, value) => [{
-          type: 'text',
-          text: `${value.host} | DNS: ${value.dns.join(', ')} | TCP: ${value.tcp} | ${value.http}`,
-        }],
+        render: (_a, value) => [{ type: 'text', text: `${value.host} | DNS: ${value.dns.join(', ')} | TCP: ${value.tcp} | ${value.http}` }],
         presentationMeta: (_a, value) => value,
       },
       presentCall: (args): ToolCallView => ({
@@ -272,21 +196,7 @@ export default Object.assign(
         const host = args.host as string
         const port = (args.port ?? 443) as number
         const path = (args.path as string | undefined) ?? '/'
-        const scheme = port === 80 ? 'http' : 'https'
-        const url = `${scheme}://${host}:${port}${path}`
-        const hostExpr = psStr(b64(host))
-        const urlExpr = psStr(b64(url))
-        const script = [
-          '$ErrorActionPreference = "Continue"',
-          `try { $dns = [System.Net.Dns]::GetHostAddresses(${hostExpr}) | ForEach-Object { $_.IPAddressToString } } catch { $dns = @("DNS_FAILED") }`,
-          `$tcp = $(${tcpTestExpr(hostExpr, port)})`,
-          `$h = New-Object System.Net.Http.HttpClient; $h.Timeout = [TimeSpan]::FromSeconds(10)`,
-          `try { $r = $h.GetAsync(${urlExpr}).GetAwaiter().GetResult(); $http = "HTTP " + [int]$r.StatusCode } catch { $http = "FAILED" }`,
-          '$h.Dispose()',
-          `$out = [ordered]@{ host = ${psStr(b64(host))}; dns = @($dns); tcp = $tcp; http = $http }`,
-          '$out | ConvertTo-Json -Compress',
-        ].join('; ')
-        return psJson(script, timeoutMs)
+        return checkDiag(host, port, path, timeoutMs)
       },
     }))
 
@@ -306,36 +216,83 @@ export default Object.assign(
         },
         render: (_a, value) => [{
           type: 'text',
-          text: value.hasGithub
-            ? `Found ${value.entries.length} GitHub entries in hosts:\n${value.entries.join('\n')}`
-            : 'No GitHub entries in hosts (clean)',
+          text: value.hasGithub ? `Found ${value.entries.length} GitHub entries in hosts:\n${value.entries.join('\n')}` : 'No GitHub entries in hosts (clean)',
         }],
         presentationMeta: (_a, value) => value,
       },
-      presentCall: (): ToolCallView => ({
-        card: 'generic',
-        title: 'Scanning hosts file for GitHub entries',
-        kind: 'search',
-      }),
+      presentCall: (): ToolCallView => ({ card: 'generic', title: 'Scanning hosts file for GitHub entries', kind: 'search' }),
       presentResult: (_a, result): ToolResultView => {
         const m = meta<{ entries?: string[]; hasGithub?: boolean }>(result)
         return {
           card: 'generic',
           title: m?.hasGithub ? `Hosts: ${m.entries?.length ?? 0} GitHub entries` : 'Hosts: clean',
+          content: [{ type: 'text', text: m?.hasGithub ? (m.entries ?? []).join('\n') : 'No GitHub entries in hosts' }],
+        }
+      },
+      async execute() {
+        return checkHosts(timeoutMs)
+      },
+    }))
+
+    // ── 6. net_doctor ─────────────────────────────────────────────────────
+    ctx.tools.register(defineTool({
+      name: 'net_doctor',
+      description: 'Full network preflight for a China-style network: system proxy, proxy-port reachability, TUN-adapter detection, GitHub reachability and hosts conflicts — each with concrete suggestions about what to change. Use this before blaming the network for a failure.',
+      parameters: {},
+      output: {
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            ok: { type: 'boolean', required: true },
+            findings: {
+              type: 'array',
+              required: true,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  level: { type: 'string', required: true },
+                  title: { type: 'string', required: true },
+                  detail: { type: 'string', required: true },
+                },
+              },
+            },
+            suggestions: { type: 'array', items: { type: 'string' }, required: true },
+          },
+        },
+        render: (_a, value) => [{
+          type: 'text',
+          text: [
+            ...value.findings.map((f) => `${f.level === 'ok' ? '✔' : f.level === 'warn' ? '⚠' : '✖'} ${f.title}${f.detail ? ` — ${f.detail}` : ''}`),
+            ...(value.suggestions.length ? ['', 'Suggested fix:', ...value.suggestions.map((s) => `- ${s}`)] : []),
+          ].join('\n'),
+        }],
+        presentationMeta: (_a, value) => value,
+      },
+      presentCall: (): ToolCallView => ({ card: 'generic', title: 'Running network doctor', kind: 'search' }),
+      presentResult: (_a, result): ToolResultView => {
+        const m = meta<{ ok?: boolean; findings?: { level: string; title: string }[]; suggestions?: string[] }>(result)
+        const errors = m?.findings?.filter((f) => f.level === 'error').length ?? 0
+        const warns = m?.findings?.filter((f) => f.level === 'warn').length ?? 0
+        return {
+          card: 'generic',
+          title: m?.ok
+            ? `Network doctor: OK${warns ? ` (${warns} warning${warns === 1 ? '' : 's'})` : ''}`
+            : `Network doctor: ${errors} problem${errors === 1 ? '' : 's'}`,
           content: [{
             type: 'text',
-            text: m?.hasGithub ? (m.entries ?? []).join('\n') : 'No GitHub entries in hosts',
+            text: m?.suggestions?.length ? `Suggested fix:\n${m.suggestions.map((s) => `- ${s}`).join('\n')}` : 'Configuration looks self-consistent.',
           }],
         }
       },
       async execute() {
-        const script = [
-          `$hits = @(Select-String -Path (${HOSTS_PATH}) -Pattern 'github' -ErrorAction SilentlyContinue)`,
-          '$entries = @($hits | ForEach-Object { ($_.Line).Trim() })',
-          '$out = [ordered]@{ entries = $entries; hasGithub = ($entries.Count -gt 0) }',
-          '$out | ConvertTo-Json -Compress',
-        ].join('; ')
-        return psJson(script, timeoutMs)
+        const report: DoctorReport = await runDoctor({ timeoutMs })
+        return {
+          ok: report.ok,
+          findings: report.findings.map((f) => ({ level: f.level, title: f.title, detail: f.detail ?? '' })),
+          suggestions: report.suggestions,
+        }
       },
     }))
   },

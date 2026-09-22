@@ -2,6 +2,8 @@
 
 ![dsh-netassist](https://raw.githubusercontent.com/Edge-Echo/dsh-netassist/main/banner.svg)
 
+> Part of the **dsh-toolkit family**: [dsh-mcp-bridge](https://github.com/Edge-Echo/dsh-mcp-bridge) · [dsh-win-toolkit](https://github.com/Edge-Echo/dsh-win-toolkit) · [dsh-netassist](https://github.com/Edge-Echo/dsh-netassist) · [dsh-driftwatch](https://github.com/Edge-Echo/dsh-driftwatch)
+
 [![npm version](https://img.shields.io/npm/v/dsh-netassist?color=14b8a6&logo=npm)](https://www.npmjs.com/package/dsh-netassist)
 [![npm downloads](https://img.shields.io/npm/dm/dsh-netassist?color=22d3ee)](https://www.npmjs.com/package/dsh-netassist)
 [![license](https://img.shields.io/npm/l/dsh-netassist?color=14b8a6)](LICENSE)
