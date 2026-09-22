@@ -15,7 +15,13 @@
     "diagnostics",
     "github",
     "hosts",
-    "cordis"
+    "cordis",
+    "network-diagnostics",
+    "proxy-check",
+    "connectivity",
+    "github-access",
+    "doctor",
+    "troubleshooting"
   ],
   "files": [
     "cordis.patch.yml",
@@ -37,6 +43,9 @@
   },
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
+  "bin": {
+    "dsh-netassist": "lib/cli.js"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "verify": "node scripts/verify.mjs"
