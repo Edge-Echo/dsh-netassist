@@ -1,0 +1,8 @@
+✔ System proxy: socks=127.0.0.1:10808
+✔ Proxy port 10808 responding
+⚠ GitHub TCP 443 reachable but the HTTPS request failed
+   DNS: 20.205.243.166
+✔ hosts file clean (no GitHub entries)
+
+Suggested fix:
+- TCP works but TLS does not: usually the proxy does not cover github.com, or SNI is being interfered with. Route github.com through your proxy (or check the proxy rules) and retry.
