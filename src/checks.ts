@@ -8,7 +8,10 @@ import { promisify } from 'node:util'
 
 const execFileAsync = promisify(execFile)
 
-export const DEFAULT_TIMEOUT_MS = 25000
+// A cold powershell.exe on a fresh Windows machine can take ~20s to start, which is most
+// of a check's wall time. Measured on a GitHub windows-latest runner: every tool hit a 25s
+// timeout on a registry read that takes milliseconds once the process is warm.
+export const DEFAULT_TIMEOUT_MS = 60_000
 export const DEFAULT_PROXY_PORTS = [10808, 10809, 7890, 7897, 8888, 1080]
 
 export async function ps(script: string, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<string> {
