@@ -21,6 +21,21 @@ Born from real-world China-network pain: GitHub flaky, proxies everywhere, hosts
 `powershell.exe`. On other platforms the tools start but their checks cannot run, and they say
 so (`spawn powershell.exe ENOENT`) instead of reporting a clean result.
 
+
+### Timing
+
+Every check spawns a `powershell.exe`, and a cold one costs roughly 20 seconds to start. So on
+a freshly booted Windows machine:
+
+- the individual tools answer within about half a minute
+- **`net_doctor` can exceed a minute**, because it runs four checks in parallel plus a port
+  probe
+
+Most MCP clients default to a 60-second request timeout, so `net_doctor` may time out on a cold
+machine even though it is working. If that happens, call the individual checks (`net_github_status`,
+`net_proxy_status`, `net_hosts_check`) instead, or raise your client's request timeout. Once
+PowerShell has been used a few times the cost drops sharply.
+
 ## Tools
 
 | Tool | What it answers |
