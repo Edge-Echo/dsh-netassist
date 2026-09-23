@@ -15,6 +15,12 @@ Born from real-world China-network pain: GitHub flaky, proxies everywhere, hosts
 
 > 中文文档见 [README.zh.md](README.zh.md)。
 
+## Platform
+
+**Windows.** Proxy detection reads the Windows registry and the checks shell out to
+`powershell.exe`. On other platforms the tools start but their checks cannot run, and they say
+so (`spawn powershell.exe ENOENT`) instead of reporting a clean result.
+
 ## Tools
 
 | Tool | What it answers |
