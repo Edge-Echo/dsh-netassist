@@ -20,8 +20,22 @@ export async function ps(script: string, timeoutMs = DEFAULT_TIMEOUT_MS): Promis
     )
     return stdout.trim()
   } catch (err) {
-    const e = err as { message?: string }
-    throw new Error(`PowerShell failed: ${e?.message ?? String(err)}`)
+        // Surface what the child process actually said. The previous message printed the whole
+        // script and dropped stderr, which is the only part that says why it failed.
+        const e = err as { stderr?: string; code?: number | string; signal?: string; killed?: boolean }
+        const stderr = (e?.stderr ?? "").trim()
+        const detail = stderr
+          ? stderr.split(/\r?\n/).slice(0, 12).join("\n").slice(0, 1200)
+          : "(no stderr)"
+        const status = e?.killed
+          ? `timed out after ${timeoutMs}ms`
+          : e?.signal
+            ? `killed by ${e.signal}`
+            : `exit ${String(e?.code ?? "?")}`
+        const preview = script.replace(/\s+/g, " ").slice(0, 160)
+        throw new Error(
+          `PowerShell failed (${status})\n  stderr: ${detail}\n  script: ${preview}${script.length > 160 ? "…" : ""}`
+        )
   }
 }
 
