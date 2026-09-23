@@ -1,4 +1,4 @@
-export declare const DEFAULT_TIMEOUT_MS = 25000;
+export declare const DEFAULT_TIMEOUT_MS = 60000;
 export declare const DEFAULT_PROXY_PORTS: number[];
 export declare function ps(script: string, timeoutMs?: number): Promise<string>;
 export declare function psJson<T>(script: string, timeoutMs?: number): Promise<T>;
