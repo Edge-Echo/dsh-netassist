@@ -1,15 +1,23 @@
 # dsh-netassist
 
+**When GitHub is unreachable or the proxy is not taking effect: one command that says which link in the chain broke, and what to change.**
+
+### When you need this
+
+- DSH cannot reach GitHub or npm and you do not know whether it is DNS, TCP or the proxy
+- Your system proxy is configured but traffic is not going through it — TUN mode, routing rules, or a stale hosts entry
+- You would rather not run ping, nslookup and tracert by hand and interpret four outputs yourself
+
+Every conclusion carries the premise it depends on, so the report cannot contradict itself — a port is only reported as a problem when a proxy is actually configured to use it.
+
 ![dsh-netassist](https://raw.githubusercontent.com/Edge-Echo/dsh-netassist/main/banner.svg)
 
-> Part of the **dsh-toolkit family**: [dsh-mcp-bridge](https://github.com/Edge-Echo/dsh-mcp-bridge) · [dsh-win-toolkit](https://github.com/Edge-Echo/dsh-win-toolkit) · [dsh-netassist](https://github.com/Edge-Echo/dsh-netassist) · [dsh-driftwatch](https://github.com/Edge-Echo/dsh-driftwatch)
 
 [![npm version](https://img.shields.io/npm/v/dsh-netassist?color=14b8a6&logo=npm)](https://www.npmjs.com/package/dsh-netassist)
 [![npm downloads](https://img.shields.io/npm/dm/dsh-netassist?color=22d3ee)](https://www.npmjs.com/package/dsh-netassist)
 [![license](https://img.shields.io/npm/l/dsh-netassist?color=14b8a6)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/Edge-Echo/dsh-netassist?color=22d3ee)](https://github.com/Edge-Echo/dsh-netassist)
 
-**Network & proxy assistant for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh).**
 
 Born from real-world China-network pain: GitHub flaky, proxies everywhere, hosts conflicts, TUN vs system proxy confusion. This plugin gives your agent one-shot answers to "is GitHub reachable?", "what proxy is my system using?", "is my proxy port alive?", plus a full diagnosis chain — all read-only, all injection-safe.
 
@@ -29,13 +37,11 @@ the case that never gets reported:
 [Tell me in an issue](../../issues/new?template=usage.yml) — or if something is already broken,
 just open a normal bug report.
 
-
 ## Platform
 
 **Windows.** Proxy detection reads the Windows registry and the checks shell out to
 `powershell.exe`. On other platforms the tools start but their checks cannot run, and they say
 so (`spawn powershell.exe ENOENT`) instead of reporting a clean result.
-
 
 ### Timing
 
@@ -105,3 +111,16 @@ net_hosts_check   → no github entries in hosts (clean)
 - npm: <https://www.npmjs.com/package/dsh-netassist>
 - GitHub: <https://github.com/Edge-Echo/dsh-netassist>
 - License: MIT
+
+## Related
+
+Part of the **dsh-toolkit family** — small, independently useful pieces for
+[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness):
+
+- [dsh-mcp-bridge](https://github.com/Edge-Echo/dsh-mcp-bridge) — install six curated MCP servers, verified in CI
+- [dsh-win-toolkit](https://github.com/Edge-Echo/dsh-win-toolkit) — clipboard, notifications, hosts, port checks on Windows
+- [dsh-netassist](https://github.com/Edge-Echo/dsh-netassist) — network and proxy diagnosis with a concrete next step
+- [dsh-driftwatch](https://github.com/Edge-Echo/dsh-driftwatch) — behaviour-drift reports between two session logs
+- [dsh-ledger](https://github.com/Edge-Echo/dsh-ledger) — what the agent did to your files, provably unaltered
+- [dsh-release-evidence](https://github.com/Edge-Echo/dsh-release-evidence) — one verifiable artifact per release
+- [mcp-netassist](https://github.com/Edge-Echo/mcp-netassist) — the same network checks as an MCP server, any client

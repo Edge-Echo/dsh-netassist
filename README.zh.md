@@ -1,15 +1,23 @@
 # dsh-netassist
 
+**GitHub 连不上、代理不生效的时候，一条命令说清是哪一环断了，以及该改什么。**
+
+### 什么时候需要它
+
+- DSH 拉不到 GitHub 或 npm，分不清问题出在 DNS、TCP 还是代理
+- 系统代理配了却不生效 —— TUN 模式、路由规则，或者一条过期的 hosts 记录
+- 不想自己跑 ping、nslookup、tracert，再对着四份输出自己推断
+
+每条结论都带着它成立的前提，所以报告不会自相矛盾 —— 只有当代理确实被配置为使用某个端口时，该端口不通才会被报成问题。
+
 ![dsh-netassist](https://raw.githubusercontent.com/Edge-Echo/dsh-netassist/main/banner.svg)
 
-> Part of the **dsh-toolkit family**: [dsh-mcp-bridge](https://github.com/Edge-Echo/dsh-mcp-bridge) · [dsh-win-toolkit](https://github.com/Edge-Echo/dsh-win-toolkit) · [dsh-netassist](https://github.com/Edge-Echo/dsh-netassist) · [dsh-driftwatch](https://github.com/Edge-Echo/dsh-driftwatch)
 
 [![npm version](https://img.shields.io/npm/v/dsh-netassist?color=14b8a6&logo=npm)](https://www.npmjs.com/package/dsh-netassist)
 [![npm downloads](https://img.shields.io/npm/dm/dsh-netassist?color=22d3ee)](https://www.npmjs.com/package/dsh-netassist)
 [![license](https://img.shields.io/npm/l/dsh-netassist?color=14b8a6)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/Edge-Echo/dsh-netassist?color=22d3ee)](https://github.com/Edge-Echo/dsh-netassist)
 
-**面向 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh) 的网络与代理助手。**
 
 源自真实的大陆网络痛点：GitHub 时通时断、到处是代理、hosts 冲突、TUN 模式和系统代理分不清。这个插件让 agent 一键回答「GitHub 通不通？」「系统代理是什么？」「代理端口活着吗？」，外加完整诊断链——全部只读、全部防注入。
 
@@ -25,7 +33,6 @@
 - 缺什么、哪里不对
 
 [开个 issue 说一句](../../issues/new?template=usage.yml) —— 如果是明确的 bug，直接开普通 issue 就行。
-
 
 ## 工具
 
@@ -77,3 +84,15 @@ net_hosts_check   → no github entries in hosts (clean)
 - npm: <https://www.npmjs.com/package/dsh-netassist>
 - GitHub: <https://github.com/Edge-Echo/dsh-netassist>
 - License: MIT
+
+## 相关
+
+属于 **dsh-toolkit 家族** —— 一组各自独立可用的小工具，面向 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)：
+
+- [dsh-mcp-bridge](https://github.com/Edge-Echo/dsh-mcp-bridge) —— 一条命令装好 6 个精选 MCP server，CI 逐个验证
+- [dsh-win-toolkit](https://github.com/Edge-Echo/dsh-win-toolkit) —— Windows 剪贴板、通知、hosts、端口检测
+- [dsh-netassist](https://github.com/Edge-Echo/dsh-netassist) —— 网络与代理诊断，直接告诉你下一步
+- [dsh-driftwatch](https://github.com/Edge-Echo/dsh-driftwatch) —— 两次会话日志的行为漂移报告
+- [dsh-ledger](https://github.com/Edge-Echo/dsh-ledger) —— agent 到底动了哪些文件，且记录不可篡改
+- [dsh-release-evidence](https://github.com/Edge-Echo/dsh-release-evidence) —— 每次发布一个可验证的证据包
+- [mcp-netassist](https://github.com/Edge-Echo/mcp-netassist) —— 同一套网络检查，做成任意 MCP 客户端可用的服务器
