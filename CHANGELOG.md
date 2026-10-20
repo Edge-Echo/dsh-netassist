@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1
+
+**Fixed: non-ASCII output from PowerShell was corrupted.** PowerShell 5.1 writes stdout in the OEM
+code page while Node decodes UTF-8, so a hosts-file comment or a localised registry string came back
+mangled. The PowerShell boundary now forces the child's stdout to UTF-8, and the test suite asserts a
+round-trip of non-ASCII text through `ps()`.
+
 ## [0.3.0] - 2026-10-20
 
 ### Added

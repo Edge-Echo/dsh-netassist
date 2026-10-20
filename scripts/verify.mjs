@@ -108,5 +108,11 @@ try {
   check('net_registry_check executes', false, err instanceof Error ? err.message : String(err))
 }
 
+// The PowerShell boundary must preserve non-ASCII output, or Chinese hosts comments and
+// localised registry values would arrive mangled. ps() is exported for exactly this kind of check.
+const { ps: probePs } = await import('../lib/checks.js')
+const echoed = await probePs('Write-Output "中文测试 · ünïcode"')
+check('PowerShell output preserves non-ASCII text', echoed === '中文测试 · ünïcode', JSON.stringify(echoed))
+
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}`)
 process.exit(failures ? 1 : 0)

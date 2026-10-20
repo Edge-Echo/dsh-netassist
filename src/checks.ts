@@ -18,7 +18,9 @@ export async function ps(script: string, timeoutMs = DEFAULT_TIMEOUT_MS): Promis
   try {
     const { stdout } = await execFileAsync(
       'powershell.exe',
-      ['-NoProfile', '-NonInteractive', '-Command', script],
+      // PowerShell 5.1 writes OEM-encoded stdout; Node decodes UTF-8. Force the child to UTF-8 so
+        // non-ASCII values (hosts comments, localized registry strings) survive the boundary.
+        ['-NoProfile', '-NonInteractive', '-Command', `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ${script}`],
       { timeout: timeoutMs, windowsHide: true, maxBuffer: 4 * 1024 * 1024 },
     )
     return stdout.trim()
