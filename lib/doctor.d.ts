@@ -1,4 +1,5 @@
 import { type GithubStatus, type HostsCheck, type PortProbe, type ProxyStatus, type TunCheck } from './checks.js';
+import type { DnsCompareResult, RegistryCheck } from './checks-extra.js';
 export type FindingLevel = 'ok' | 'warn' | 'error';
 export interface Finding {
     level: FindingLevel;
@@ -11,6 +12,8 @@ export interface DoctorRaw {
     github: GithubStatus;
     hosts: HostsCheck;
     tun: TunCheck;
+    dns: DnsCompareResult;
+    registry: RegistryCheck;
 }
 export interface DoctorReport {
     ok: boolean;

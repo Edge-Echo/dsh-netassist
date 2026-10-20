@@ -108,6 +108,28 @@ try {
   check('net_registry_check executes', false, err instanceof Error ? err.message : String(err))
 }
 
+// ── doctor folds the new checks into the preflight ─────────────────────
+// The whole point of doctor is a complete "what should I change" answer; these two checks have to be
+// part of it, or the answer silently omits the two most common npm/network failures.
+try {
+  const report = await byName.net_doctor.execute({})
+  check('net_doctor returns a report', Boolean(report) && Array.isArray(report.findings))
+  check(
+    'net_doctor reports DNS consistency',
+    report.findings.some((f) => /^DNS: all |^DNS servers disagree/.test(f.title)),
+    report.findings.map((f) => f.title).find((t) => t.startsWith('DNS')) ?? 'no DNS finding',
+  )
+  check(
+    'net_doctor reports npm registry reachability',
+    report.findings.some((f) => /npm registry (reachable|unreachable)/.test(f.title)),
+    report.findings.map((f) => f.title).find((t) => t.includes('npm registry')) ?? 'no registry finding',
+  )
+  const rendered = byName.net_doctor.output.render({}, report)
+  check('net_doctor renders the new findings', /DNS:|npm registry/.test(rendered[0]?.text ?? ''))
+} catch (err) {
+  check('net_doctor executes', false, err instanceof Error ? err.message : String(err))
+}
+
 // The PowerShell boundary must preserve non-ASCII output, or Chinese hosts comments and
 // localised registry values would arrive mangled. ps() is exported for exactly this kind of check.
 const { ps: probePs } = await import('../lib/checks.js')

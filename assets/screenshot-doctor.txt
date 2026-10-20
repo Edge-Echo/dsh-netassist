@@ -1,8 +1,14 @@
-✔ System proxy: socks=127.0.0.1:10808
-✔ Proxy port 10808 responding
+⚠ No system proxy configured
+   Direct connections only — fine if your network reaches GitHub directly or you use TUN mode.
+✔ TUN-style adapter detected: sbtun
+   TUN mode captures traffic at the network layer.
 ⚠ GitHub TCP 443 reachable but the HTTPS request failed
-   DNS: 20.205.243.166
+   DNS: 140.82.113.3
 ✔ hosts file clean (no GitHub entries)
+✔ DNS: all 4/4 responding servers agree
+   AliDNS: 140.82.113.3 | DNSPod: 140.82.113.3 | Cloudflare: 140.82.113.3 | Google: 140.82.113.3
+✔ npm registry reachable: https://registry.npmmirror.com
+   OPEN TCP, HTTP 200 in 21 ms
 
 Suggested fix:
 - TCP works but TLS does not: usually the proxy does not cover github.com, or SNI is being interfered with. Route github.com through your proxy (or check the proxy rules) and retry.

@@ -45,17 +45,18 @@ so (`spawn powershell.exe ENOENT`) instead of reporting a clean result.
 
 ### Timing
 
-Every check spawns a `powershell.exe`, and a cold one costs roughly 20 seconds to start. So on
-a freshly booted Windows machine:
+The Windows checks spawn a `powershell.exe`, and a cold one costs roughly 20 seconds to start; the
+DNS comparison and npm registry checks use Node's own network stack and add well under a second. So
+on a freshly booted Windows machine:
 
 - the individual tools answer within about half a minute
-- **`net_doctor` can exceed a minute**, because it runs four checks in parallel plus a port
-  probe
+- **`net_doctor` can exceed a minute**, because it runs six checks in parallel (system proxy, GitHub
+  reachability, hosts file, TUN adapters, DNS comparison, npm registry) plus a port probe
 
 Most MCP clients default to a 60-second request timeout, so `net_doctor` may time out on a cold
 machine even though it is working. If that happens, call the individual checks (`net_github_status`,
-`net_proxy_status`, `net_hosts_check`) instead, or raise your client's request timeout. Once
-PowerShell has been used a few times the cost drops sharply.
+`net_proxy_status`, `net_hosts_check`, `net_dns_compare`, `net_registry_check`) instead, or raise
+your client's request timeout. Once PowerShell has been used a few times the cost drops sharply.
 
 ## Tools
 

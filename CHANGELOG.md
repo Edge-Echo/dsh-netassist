@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.4.0
+
+**`net_doctor` now runs the DNS comparison and the npm registry check too.**
+
+The whole point of the preflight is a complete "what should I change" answer, and the two most common
+failures it could not see were a resolver returning a stale answer and a configured npm mirror that
+does not respond. Both are now part of the parallel run, and the report says which servers answered
+what and whether the registry is reachable:
+
+```
+✔ DNS: all 4/4 responding servers agree
+   AliDNS: 140.82.113.3 | DNSPod: 140.82.113.3 | Cloudflare: 140.82.113.3 | Google: 140.82.113.3
+✔ npm registry reachable: https://registry.npmmirror.com
+   OPEN TCP, HTTP 200 in 21 ms
+```
+
+The DNS and registry checks use Node's network stack, so they add well under a second to a
+preflight whose Windows checks each cost a cold PowerShell start.
+
+Tests: 19 → 24 assertions, including an executed `net_doctor` that must contain both findings.
+The README screenshot was regenerated from a real run.
+
 ## 0.3.1
 
 **Fixed: non-ASCII output from PowerShell was corrupted.** PowerShell 5.1 writes stdout in the OEM

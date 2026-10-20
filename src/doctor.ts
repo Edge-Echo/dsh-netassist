@@ -8,6 +8,8 @@ import {
   DEFAULT_PROXY_PORTS, type GithubStatus, type HostsCheck, type PortProbe,
   type ProxyStatus, type TunCheck,
 } from './checks.js'
+import { checkDnsCompare, checkRegistry } from './checks-extra.js'
+import type { DnsCompareResult, RegistryCheck } from './checks-extra.js'
 
 export type FindingLevel = 'ok' | 'warn' | 'error'
 
@@ -23,6 +25,8 @@ export interface DoctorRaw {
   github: GithubStatus
   hosts: HostsCheck
   tun: TunCheck
+  dns: DnsCompareResult
+  registry: RegistryCheck
 }
 
 export interface DoctorReport {
@@ -39,11 +43,13 @@ function ms(v?: number): string {
 /** Run the full preflight diagnosis and derive suggestions. */
 export async function runDoctor(opts: { timeoutMs?: number; extraPorts?: number[] } = {}): Promise<DoctorReport> {
   const timeoutMs = opts.timeoutMs
-  const [proxy, github, hosts, tun] = await Promise.all([
+  const [proxy, github, hosts, tun, dns, registry] = await Promise.all([
     checkProxyStatus(timeoutMs),
     checkGithub(timeoutMs),
     checkHosts(timeoutMs),
     checkTunAdapters(timeoutMs),
+    checkDnsCompare('github.com', timeoutMs),
+    checkRegistry(timeoutMs),
   ])
 
   const probePorts = [...new Set([
@@ -181,8 +187,52 @@ export async function runDoctor(opts: { timeoutMs?: number; extraPorts?: number[
     findings.push({ level: 'ok', title: 'hosts file clean (no GitHub entries)' })
   }
 
+  // ── DNS consistency ─────────────────────────────────────────────────────
+  if (dns.consistent) {
+    findings.push({
+      level: 'ok',
+      title: `DNS: all ${dns.responding}/${dns.answers.length} responding servers agree`,
+      detail: dns.answers
+        .filter((a) => a.addresses.length)
+        .map((a) => `${a.name}: ${a.addresses[0]}`)
+        .join(' | '),
+    })
+  } else {
+    findings.push({
+      level: 'warn',
+      title: `DNS servers disagree (${dns.responding}/${dns.answers.length} answered)`,
+      detail: dns.answers
+        .map((a) => `${a.name}: ${a.addresses.length ? a.addresses.join(', ') : a.error ?? 'no answer'}`)
+        .join(' | '),
+    })
+    suggestions.push(
+      'Your resolver is returning a different answer from the public ones: it may be stale, or intercepted. ' +
+      'Run `ipconfig /flushdns` (Windows) and retry; if it persists, set a public resolver for this host.',
+    )
+  }
+
+  // ── npm registry reachability ───────────────────────────────────────────
+  const configuredProbe = registry.probes.find((p) => p.registry === registry.configured)
+  if (configuredProbe && (configuredProbe.http > 0 || configuredProbe.tcp === 'OPEN')) {
+    findings.push({
+      level: 'ok',
+      title: `npm registry reachable: ${registry.configured}`,
+      detail: `${configuredProbe.tcp} TCP, ${configuredProbe.http > 0 ? `HTTP ${configuredProbe.http}` : 'no HTTPS answer'} in ${ms(configuredProbe.ms)}`,
+    })
+  } else if (configuredProbe) {
+    findings.push({
+      level: 'warn',
+      title: `npm registry unreachable: ${registry.configured}`,
+      detail: `TCP: ${configuredProbe.tcp}`,
+    })
+    suggestions.push(
+      `${registry.configured} does not answer — npm install/audit will fail against it. ` +
+      'Switch with `npm config set registry https://registry.npmjs.org/` (or fix the mirror), then retry.',
+    )
+  }
+
   const ok = !findings.some((f) => f.level === 'error')
-  return { ok, findings, suggestions, raw: { proxy, ports, github, hosts, tun } }
+  return { ok, findings, suggestions, raw: { proxy, ports, github, hosts, tun, dns, registry } }
 }
 
 const ICON: Record<FindingLevel, string> = { ok: '✔', warn: '⚠', error: '✖' }
