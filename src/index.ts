@@ -10,6 +10,7 @@ import type { ToolCallView, ToolResultView } from '@deepseek-ai/dsh-tools'
 import {
   checkDiag, checkGithub, checkHosts, checkProxyPorts, checkProxyStatus,
 } from './checks.js'
+import { checkDnsCompare, checkRegistry } from './checks-extra.js'
 import { runDoctor, type DoctorReport } from './doctor.js'
 
 /** Plugin config: per-call PowerShell timeout. */
@@ -295,6 +296,121 @@ export default Object.assign(
         }
       },
     }))
+
+      // ── 7. net_dns_compare ─────────────────────────────────────────
+      ctx.tools.register(defineTool({
+        name: 'net_dns_compare',
+        description: 'Ask several public DNS servers the same question and compare the answers. A stale or poisoned system resolver is invisible until other servers disagree, which is exactly the situation where GitHub "resolves but does not work".',
+        parameters: {
+          host: { type: 'string', description: 'Hostname to resolve through each DNS server', required: true },
+        },
+        output: {
+          schema: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              host: { type: 'string', required: true },
+              consistent: { type: 'boolean', required: true },
+              responding: { type: 'integer', required: true },
+              answers: {
+                type: 'array',
+                required: true,
+                items: {
+                  type: 'object',
+                  additionalProperties: false,
+                  properties: {
+                    name: { type: 'string', required: true },
+                    server: { type: 'string', required: true },
+                    addresses: { type: 'array', items: { type: 'string' }, required: true },
+                    ms: { type: 'integer', required: true },
+                    error: { type: 'string', required: true },
+                  },
+                },
+              },
+            },
+          },
+          render: (_a, value) => [{
+            type: 'text',
+            text: [
+              `DNS comparison for ${value.host}: ${value.consistent ? 'all responding servers agree' : 'SERVERS DISAGREE'} (${value.responding}/${value.answers.length} answered)`,
+              ...value.answers.map((a) => `${a.name.padEnd(10)} ${a.server.padEnd(14)} ${a.addresses.length ? a.addresses.join(', ') : 'failed: ' + a.error} (${a.ms} ms)`),
+            ].join('\n'),
+          }],
+          presentationMeta: (_a, value) => value,
+        },
+        presentCall: (args): ToolCallView => ({ card: 'generic', title: `Comparing DNS servers for ${(args as { host?: string }).host ?? 'host'}`, kind: 'search' }),
+        presentResult: (_a, result): ToolResultView => {
+          const m = meta<{ host?: string; consistent?: boolean; responding?: number }>(result)
+          return {
+            card: 'generic',
+            title: m?.consistent ? `DNS for ${m?.host}: servers agree` : `DNS for ${m?.host}: servers DISAGREE`,
+            content: [{ type: 'text', text: `${m?.responding ?? 0} server(s) answered` }],
+          }
+        },
+        async execute(args) {
+          const r = await checkDnsCompare((args as { host: string }).host)
+          return {
+            host: r.host,
+            consistent: r.consistent,
+            responding: r.responding,
+            answers: r.answers.map((a) => ({ name: a.name, server: a.server, addresses: a.addresses, ms: a.ms, error: a.error ?? '' })),
+          }
+        },
+      }))
+
+      // ── 8. net_registry_check ───────────────────────────────────────
+      ctx.tools.register(defineTool({
+        name: 'net_registry_check',
+        description: 'Check the npm registry npm is actually configured to use, plus the official registry for comparison: TCP reachability and HTTP status. "npm install failed" is usually this, not GitHub.',
+        parameters: {},
+        output: {
+          schema: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              configured: { type: 'string', required: true },
+              probes: {
+                type: 'array',
+                required: true,
+                items: {
+                  type: 'object',
+                  additionalProperties: false,
+                  properties: {
+                    registry: { type: 'string', required: true },
+                    host: { type: 'string', required: true },
+                    tcp: { type: 'string', required: true },
+                    http: { type: 'integer', required: true },
+                    ms: { type: 'integer', required: true },
+                  },
+                },
+              },
+            },
+          },
+          render: (_a, value) => [{
+            type: 'text',
+            text: [
+              `npm registry in use: ${value.configured}`,
+              ...value.probes.map((p) => `${p.registry} -> TCP ${p.tcp}, ${p.http > 0 ? 'HTTP ' + p.http : 'HTTPS failed'} (${p.ms} ms)`),
+            ].join('\n'),
+          }],
+          presentationMeta: (_a, value) => value,
+        },
+        presentCall: (): ToolCallView => ({ card: 'generic', title: 'Checking the npm registry', kind: 'fetch' }),
+        presentResult: (_a, result): ToolResultView => {
+          const m = meta<{ configured?: string; probes?: { tcp: string; http: number }[] }>(result)
+          const broken = (m?.probes ?? []).filter((p) => p.tcp !== 'OPEN').length
+          return {
+            card: 'generic',
+            title: broken ? `npm registry: ${broken} probe(s) unreachable` : 'npm registry: reachable',
+            content: [{ type: 'text', text: `Using ${m?.configured ?? '?'}` }],
+          }
+        },
+        async execute() {
+          const r = await checkRegistry()
+          return { configured: r.configured, probes: r.probes }
+        },
+      }))
+
   },
   { inject: ['tools'] },
 )

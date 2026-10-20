@@ -43,6 +43,8 @@
 | `net_proxy_probe` | 哪些常见本地代理端口活着？（默认 10808/10809/7890/7897/8888/1080） |
 | `net_diag` | 任意主机完整诊断链：DNS → TCP → HTTPS 状态码 |
 | `net_hosts_check` | hosts 里钉了哪些 GitHub 条目（代理冲突扫描） |
+| `net_dns_compare` | 同时问 AliDNS / DNSPod / Cloudflare / Google 同一个域名并对比 —— 系统 DNS 是不是返回了过期地址？ |
+| `net_registry_check` | npm 实际配置的源能不能连通？同时探测配置源和官方源。 |
 
 ## 安装
 
@@ -57,6 +59,8 @@ dsh web   # 重启
 - 「我的代理在跑吗？」→ `net_proxy_probe`
 - 「为什么访问不了 api.example.com:8443？」→ `net_diag` host=api.example.com port=8443
 - 「hosts 里有 github 条目吗？」→ `net_hosts_check`
+- 「github.com 能解析但用不了？」→ `net_dns_compare` host=github.com
+- 「npm install 为什么失败？」→ `net_registry_check`
 
 ## 工作原理
 

@@ -66,6 +66,8 @@ PowerShell has been used a few times the cost drops sharply.
 | `net_proxy_probe` | Which common local proxy ports are alive? (default 10808/10809/7890/7897/8888/1080) |
 | `net_diag` | Full chain for any host: DNS → TCP → HTTPS status code |
 | `net_hosts_check` | GitHub entries pinned in the hosts file (proxy conflict scan) |
+| `net_dns_compare` | Ask AliDNS / DNSPod / Cloudflare / Google the same question and compare — is the system resolver returning a stale address? |
+| `net_registry_check` | Is the npm registry npm is configured to use actually reachable? Checks the configured one and the official one. |
 
 ![dsh-netassist proxy status](assets/screenshot-proxy.png)
 
@@ -82,6 +84,8 @@ Then ask your agent:
 - "is my proxy running?" → `net_proxy_probe`
 - "why can't I reach api.example.com:8443?" → `net_diag` host=api.example.com port=8443
 - "any github entries in my hosts?" → `net_hosts_check`
+- "why does github.com resolve but not work?" → `net_dns_compare` host=github.com
+- "why does npm install fail?" → `net_registry_check`
 
 ## How it works
 
